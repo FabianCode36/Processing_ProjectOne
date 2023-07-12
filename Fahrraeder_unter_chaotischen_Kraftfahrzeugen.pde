@@ -44,7 +44,6 @@ float[] onCommingTrafficX = {120, 120, 120, 120, 120};//Gegenverkehr Array
 float[] onCommingTrafficY = {320, 250, 180, 110, 30}; // Gegenverkehr Array
 
 //----- Hilfsvariablen -----
-boolean showStart = false;
 boolean isPaused = false;
 float offset = 0;
 int gameCounter = 0;
@@ -60,9 +59,12 @@ int timerInterval = 1000;
 //---------- Bildschirme ----------
 boolean startScreen = true;
 boolean isCountdown = false;
+boolean isGameStarted = false;
+boolean isGameOver = false;
+
 int countdownTimer = 3;
 int countdownStartTime;
-boolean isGameStarted = false;
+int countdownEndTime;
 PFont font;
 PImage img;
 PImage pauseImg;
@@ -99,7 +101,8 @@ void setup() {
 //########################## ALLE DRAW METHODEN #####################
 //------------------ Draw allg. -----------------
 void draw() {
-  if(showStart){
+  if(startScreen){
+    gameSound.stop(); // Stoppe das Spiel-Sound
     drawStartScreen();
     if(!lobbySound.isPlaying()){
       lobbySound.play();
@@ -118,7 +121,10 @@ void draw() {
        }
         controllUnit();
     }
-    else {
+    else if(isGameOver){
+      gameSound.stop(); // Stoppe das Spiel-Sound
+      drawGameOver();
+    } else{
       fill(188, 0, 0);
       textSize(48);
       drawPauseScreen();
@@ -132,13 +138,14 @@ void draw() {
     }
     
     //Countdown für das wiederbeitreten nach der Pause
-  if (isCountdown) {
+    if (isCountdown) {
     fill(255);
     textSize(48);
     int countdown = countdownTimer - (millis() - countdownStartTime) / 1000;
     if (countdown > 0) {
       text(countdown, width / 2, height / 2);
     } else {
+      resetAfterPause();
       isCountdown = false;
     }
     return; // Beende die draw() Funktion, um den Countdown anzuzeigen
@@ -184,14 +191,22 @@ void draw() {
 }
 
 boolean carCollisionDetect(){
-  for(int x = 0; x < flowTrafficX.length; x++)
-      if(flowTrafficX[x] > playerX && flowTrafficX[x] < playerX + carWidth || flowTrafficX[x] + carWidth > playerX && flowTrafficX[x] + carWidth < playerX + carWidth) //X Kollision
-        if(flowTrafficY[x] > playerY && flowTrafficY[x] < playerY + carHeight || flowTrafficY[x] + carHeight > playerY && flowTrafficY[x] + carHeight < playerY + carHeight) //Y Kollision
+  for(int x = 0; x < flowTrafficX.length; x++){
+      if(flowTrafficX[x] > playerX && flowTrafficX[x] < playerX + carWidth || flowTrafficX[x] + carWidth > playerX && flowTrafficX[x] + carWidth < playerX + carWidth){ //X Kollision
+        if(flowTrafficY[x] > playerY && flowTrafficY[x] < playerY + carHeight || flowTrafficY[x] + carHeight > playerY && flowTrafficY[x] + carHeight < playerY + carHeight){ //Y Kollision
+          isGameOver = true;
           return true;
-    for(int x = 0; x < onCommingTrafficX.length; x++)
-      if(onCommingTrafficX[x] > playerX && onCommingTrafficX[x] < playerX + carWidth || onCommingTrafficX[x] + carWidth > playerX && onCommingTrafficX[x] + carWidth < playerX + carWidth) //X Kollision
-        if(onCommingTrafficY[x] > playerY && onCommingTrafficY[x] < playerY + carHeight || onCommingTrafficY[x] + carHeight > playerY && onCommingTrafficY[x] + carHeight < playerY + carHeight) //Y Kollision
+        }
+      }
+    }
+    for(int x = 0; x < onCommingTrafficX.length; x++){
+      if(onCommingTrafficX[x] > playerX && onCommingTrafficX[x] < playerX + carWidth || onCommingTrafficX[x] + carWidth > playerX && onCommingTrafficX[x] + carWidth < playerX + carWidth){ //X Kollision
+        if(onCommingTrafficY[x] > playerY && onCommingTrafficY[x] < playerY + carHeight || onCommingTrafficY[x] + carHeight > playerY && onCommingTrafficY[x] + carHeight < playerY + carHeight){ //Y Kollision
+          isGameOver = true;
           return true;
+        }
+      }
+    }
   
   return false; // Keine Kollision
 }
@@ -275,109 +290,33 @@ void drawCar(float carX, float carY) {
 
 void controllUnit() {
   if (keyPressed) {
-    if (key == 'R' || key == 'r') {
-      if (!isGameStarted) {
-        resetGame();
-        startScreen = true; // Zeige den Willkommensbildschirm
-        lobbySound.play(); // Spiele den Lobby-Sound ab, wenn das Spiel neu gestartet wird
-      }
-    }
-    
-    if (keyCode == ENTER && startScreen) {
-      lobbySound.stop(); // Sound der Lobby wird gestoppt
-      startScreen = false; // Startbildschirm ausblenden
-      isPaused = false; // Spiel starten
-    } else if (key == 'P' || key == 'p') {
-      if (!isCountdown) {
-        isPaused = !isPaused; // Pause umschalten
-        if (!isPaused) {
-          gameSound.stop(); // Stoppe das Spiel-Sound, wenn das Spiel pausiert ist
-          countdownTimer = 3;
-          countdownStartTime = millis();
-          isCountdown = true;
-        }
-      }
-    }
-
-    if (keyCode == LEFT) {
-      moveLeft = true;
-    } else if (keyCode == RIGHT) {
-      moveRight = true;
-    } else if (keyCode == UP) {
-      moveUp = true;
-    } else if (keyCode == DOWN) {
-      moveDown = true;
-    }
-  } else {
-    if (key == 'R' || key == 'r') {
-      if (!isGameStarted) {
-        resetGame();
-        startScreen = true; // Zeige den Willkommensbildschirm
-        lobbySound.play(); // Spiele den Lobby-Sound ab, wenn das Spiel neu gestartet wird
-      }
-    }
-
-    if (keyCode == LEFT) {
-      moveLeft = false;
-    } else if (keyCode == RIGHT) {
-      moveRight = false;
-    } else if (keyCode == UP) {
-      moveUp = false;
-    } else if (keyCode == DOWN) {
-      moveDown = false;
-    }
-  }
-
-  if (moveUp) {
-    if (playerY > 0) {
-      playerY -= playerSpeed;
-    }
-  }
-  if (moveLeft) {
-    if (playerX > 0) {
-      playerX -= playerSpeed;
-    }
-  }
-  if (moveDown) {
-    if (playerY + carHeight < height) {
-      playerY += playerSpeed;
-    }
-  }
-  if (moveRight) {
-    if (playerX + carHeight < width) {
-      playerX += playerSpeed;
-    }
-  }
-}
-
-/*void controllUnit() {
-  if(keyPressed){
-    switch(keyCode){
+    switch (keyCode) {
       case UP:
-        if(playerY > 0){
+        if (playerY > 0) {
           playerY -= playerSpeed;
         }
         break;
       case LEFT:
-        if(playerX > 0){
+        if (playerX > 0) {
           playerX -= playerSpeed;
         }
         break;
       case DOWN:
-        if(playerY + carHeight < height){
+        if (playerY + carHeight < height) {
           playerY += playerSpeed;
         }
         break;
       case RIGHT:
-        if(playerX +  carHeight < width){
+        if (playerX + carHeight < width) {
           playerX += playerSpeed;
         }
         break;
     }
   }
-}*/
+}
 
-//################## Startbildschirm ##################
+
+//################## Pages ##################
 void drawStartScreen() {
   background(0);
   image(img,125,65); 
@@ -395,7 +334,7 @@ void drawStartScreen() {
 
 void drawPauseScreen() {
   background(0);
-  image(pauseImg,100,0);
+  image(pauseImg, 100, 0);
   fill(255); // Textfarbe (weiß)
   textAlign(CENTER);
   textSize(20);
@@ -404,40 +343,59 @@ void drawPauseScreen() {
   text("> Press ENTER to continue", width / 2, height / 2 + 60);
 }
 
-//######################### STEUERUNG ######################
-void resetGame() {
-  // Hier werden alle Spielvariablen auf den Anfangszustand zurückgesetzt
-  playerX = 320;
-  playerY = 275;
+void drawGameOver(){
+// Anzeigen der Game Over-Seite
+  background(50); // Hintergrundfarbe des Spielfelds (grau)
+  fill(255); // Textfarbe
+  textAlign(CENTER, CENTER); // Ausrichtung des Textes
+  textSize(48); // Textgröße
+  text("Game Over", width / 2, height / 2 - 50); // Text "Game Over" anzeigen
+  textSize(24); // Kleinere Textgröße für den Score
+  text("Current Score: " + score, width / 2, height / 2); // Score anzeigen
+  
+  // Highscores anzeigen
+  for(HighScore current : highScores){
+    textSize(24);
+    text("GameID: " + current.gameNumber + " | Score: " + current.score, width / 2, height / 2); // Score anzeigen
+  }
+  // Neues Spiel-Button
+  rectMode(CENTER);
+  fill(0, 255, 0); // Grüne Farbe für den Button
+  rect(width / 2, height / 2 + 50, 150, 50); // Button-Rechteck zeichnen
+  fill(255); // Textfarbe für den Button-Text
+  textSize(24); // Textgröße für den Button-Text
+  text("Neues Spiel", width / 2, height / 2 + 50); // Text "Neues Spiel" anzeigen
+}
+
+void mousePressed() {
+  if (isGameOver) {
+    // Überprüfen, ob der Klick innerhalb der Grenzen des Buttons liegt
+    float buttonX = width / 2;
+    float buttonY = height / 2 + 50;
+    float buttonWidth = 150;
+    float buttonHeight = 50;
+    
+    if (mouseX > buttonX - buttonWidth / 2 && mouseX < buttonX + buttonWidth / 2 &&
+        mouseY > buttonY - buttonHeight / 2 && mouseY < buttonY + buttonHeight / 2) {
+        resetGame(); // Spiel zurücksetzen
+    }
+  }
 }
 
 void keyPressed() {
-//Start in das Spiel per Enter
   if (keyCode == ENTER && startScreen) {
-    lobbySound.stop();//Sound der Lobby wird gestoppt
+    lobbySound.stop(); // Sound der Lobby wird gestoppt
     startScreen = false; // Startbildschirm ausblenden
     isPaused = false; // Spiel starten
   } else if (key == 'P' || key == 'p') {
-    if (!isCountdown) {
-      isPaused = !isPaused; // Pause umschalten
-      if (!isPaused) {
-        gameSound.stop(); // Stoppe das Spiel-Sound, wenn das Spiel pausiert ist
-        countdownTimer = 3;
-        countdownStartTime = millis();
-        isCountdown = true;
-      }
+    isPaused = true; // Spiel pausieren oder fortsetzen
+  } else if (keyCode == ENTER && isPaused) {
+    isPaused = false; // Spiel fortsetzen
+    if (!isCountdown && !isPaused) {
+      countdownEndTime = millis() + countdownTimer * 1000; // Berechne die Endzeit des Countdowns
+      isCountdown = true;
+      countdownStartTime = millis(); // Startzeit des Countdowns festlegen
     }
-  }
-
-//Richtungen für die Steuerungen
-  if (keyCode == LEFT) {
-    moveLeft = true;
-  } else if (keyCode == RIGHT) {
-    moveRight = true;
-  } else if (keyCode == UP) {
-    moveUp = true;
-  } else if (keyCode == DOWN) {
-    moveDown = true;
   }
 }
 
@@ -459,4 +417,39 @@ void keyReleased() {
   } else if (keyCode == DOWN) {
     moveDown = false;
   }
+}
+
+void resetGame() {
+  // Hier werden alle Spielvariablen auf den Anfangszustand zurückgesetzt
+  playerX = 320;
+  playerY = 275;
+  score = 0;
+  offset = 0;
+  minutes = 0;
+  seconds = 0;
+  lastTime = 0;
+  
+  resetArrays();
+  
+  // Setze die Spielzustände zurück
+  startScreen = true;
+  isPaused = false;
+  isGameOver = false;
+}
+
+void resetAfterPause(){
+  resetArrays();
+}
+
+void resetArrays(){
+  // Setze die Positionen der Autos zurück
+  float[] newFlowTrafficX = {400, 400, 400, 400, 400};
+  float[] newFlowTrafficY = {320, 250, 180, 110, 30};
+  float[] newOnCommingTrafficX = {120, 120, 120, 120, 120};
+  float[] newOnCommingTrafficY = {320, 250, 180, 110, 30};
+
+  System.arraycopy(newFlowTrafficX, 0, flowTrafficX, 0, flowTrafficX.length);
+  System.arraycopy(newFlowTrafficY, 0, flowTrafficY, 0, flowTrafficY.length);
+  System.arraycopy(newOnCommingTrafficX, 0, onCommingTrafficX, 0, onCommingTrafficX.length);
+  System.arraycopy(newOnCommingTrafficY, 0, onCommingTrafficY, 0, onCommingTrafficY.length);
 }
